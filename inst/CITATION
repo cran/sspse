@@ -6,20 +6,20 @@ citHeader("If you are using 'sspse' for research that will be published, we requ
 # auts <- eval(parse(text=meta$`Authors@R`))
 # auts <- auts[sapply(auts, function(aut) "aut" %in% aut$role)]
 
-bibentry("Manual",
+bibentry(bibtype="Manual",
          title = paste(meta$Package,": ", meta$Title, sep=""),
          author = personList(as.person("Mark S. Handcock"),
                              as.person("Krista J. Gile")),
          year         = substr(meta$Date,1,4),
          note         = paste("R package version ", meta$Version, sep=""),
          address      = "Los Angeles, CA",
-         url          = "http://CRAN.R-project.org/package=RDS",
+         url          = "http://CRAN.R-project.org/package=sspse",
          
          textVersion = 
          paste("Mark S. Handcock and Krista J. Gile (2014) ", 
                paste(meta$Package,": ", meta$Title, sep=""),
                ", Version ", meta$Version, ". Project home page at http://hpmrg.org",
-               ",", " URL http://CRAN.R-project.org/package=RDS.",
+               ",", " URL http://CRAN.R-project.org/package=sspse.",
                sep="")
          )
 
