@@ -1,4 +1,4 @@
-bb95e026dfa4602fd812e0eec00305d0 *DESCRIPTION
+871cb95dd5f009ef8fe7b179c9bbd1c0 *DESCRIPTION
 5a6f4e6327bb195198515c45b5e160fb *LICENSE
 f578f1e8097df5d3397ce83903ff2274 *NAMESPACE
 2824bc3ac1c3c38741eecee7ba8795ec *R/ak.R
@@ -11,12 +11,12 @@ cbcd54ef15f2d882e71200b65e0cf212 *R/bgk_kde.R
 a0f8fad5912ae40aa38c5bbeae92d55f *R/kjgsizefunctions.R
 43b2c946123e32f761eff093abc171f2 *R/likcmp.R
 365a51c52f13b4b225ecfc793ecad310 *R/likelihoodsize.R
-91362f01c8789aa1a2b817559b45ce33 *R/plot.sspse.R
-4aad2cd9c8ae22a9d6d453fbd33fff3c *R/poscmp.R
+9526a9428b664b50157059ef8f13f079 *R/plot.sspse.R
+ff14c3019aff98063d0ac75e99d8ef64 *R/poscmp.R
 c9aeef33c09651edfd745d54d1064b65 *R/posnbinom.R
 0067304168a6b62426e776307adad02a *R/pospln.R
 d1cabb25fa4ed30192eb7df59bb73490 *R/posteriornbinom.R
-dcbca4ae7dc538f2f59e6b79d3c7f7f8 *R/posteriorsize.R
+302fa08f9543ef473582ee6e33475874 *R/posteriorsize.R
 a94abdfadb516866248edd84568d248d *R/ppspolya.R
 80d73a972b1a0d68062c7d6e2a863809 *R/print.summary.sspse.R
 e46922031e44fce0d8b899df5123d054 *R/priorsize.R
@@ -26,9 +26,9 @@ e46922031e44fce0d8b899df5123d054 *R/priorsize.R
 5edc025c919c69eb0822d6a4b9bc416a *R/zzz.R
 eab589e452042ca9d86e43e4b423bc4b *inst/CITATION
 a4dfcdab0f4eb8e09fccb17505760c2d *man/dsizeprior.Rd
-6b54c646aa3d1b1a972e73da9069191c *man/plot.sspse.Rd
+b4e3c79c2211bb5346f3d4f15c1c2bc2 *man/plot.sspse.Rd
 bfb50ab5e38cda93d4c32f3d313e494c *man/posize_warning.Rd
-dd5b8d5b52c4a52397ec9f519622256f *man/posteriorsize.Rd
+3987986c5ee2dca055d950c1c1c790f0 *man/posteriorsize.Rd
 94208e12cc2aee6a0d242570c6d8a5f7 *man/print.summary.sspse.Rd
 a02db7a4f0632dafecf5ba34c9e4561d *man/sspse-package.Rd
 4b1ec69f6be97020d3b61ffb0824bb09 *man/summary.sspse.Rd
@@ -47,6 +47,8 @@ aaff892e15db9db155023d764d492aad *src/getinclCstacked.c
 6dd1d410dbca4bc37095981584c5a19e *src/mcmc.h
 cf6de4b9fb8b1020bc41e1402f2d5774 *src/posteriorcmp.c
 7c29693d484b8850636123cac4f543dd *src/posteriorcmp.h
+14c74d8489ab7fc909be8f9b4bc78064 *src/posteriorcmp2.c
+b94e8fddfc75ee69d66e7e8517032a37 *src/posteriorcmp2.h
 ae5d3ad5a8261182ebba147c0471a6d1 *src/posteriorcmpdisease.c
 811b7f590a85732f1381e5379d58c79c *src/posteriorcmpdisease.h
 de72dea0a05007554b029852e6e4b721 *src/posteriornbinom.c
