@@ -1,9 +1,11 @@
-#ifndef POSTERIORCMPVIS_H
-#define POSTERIORCMPVIS_H
+#ifndef POSTERIORCMPWPVIS2_H
+#define POSTERIORCMPWPVIS2_H
 
-void gcmpvis (int *pop,
+void gcmpwpvis2 (int *pop12, int *pop21,
             int *K, 
-            int *n, 
+            int *n1, 
+            int *n2, 
+            int *n0, 
             int *samplesize, int *burnin, int *interval,
             double *mu, double *dfmu, 
             double *sigma, double *dfsigma,
@@ -12,51 +14,49 @@ void gcmpvis (int *pop,
             double *beta1muprior, double *beta1sigmaprior, 
             double *lmemmu, double *memdfmu,
             double *memnu, double *memdfnu,
+            double *memod,
             int *Npi,
             int *srd, 
             int *numrec, 
             double *rectime,
+            int *srd2, 
+            int *numrec2, 
+            double *rectime2,
+            int *rc, 
             int *maxcoupons,
-            double *lnlamproposal, 
+            double *muproposal, 
             double *nuproposal, 
             double *beta0proposal, double *beta1proposal, 
             double *lmemmuproposal, double *memnuproposal,
             int *N, int *maxN, 
             double *sample, 
             int *vsample, 
+            int *vsample2, 
             double *posu, 
             double *posd, 
             double *lpriorm, 
             int *burnintheta,
             int *burninbeta,
             int *verbose
-         );
+			 );
 
-void MHcmpmem (int *d, int *n, int *K,
-            double *beta0, double *beta0sd, double *beta1, double *beta1sd, 
+void MHwpmem2 (int *d1, int *d2, int *n1, int *n2, int *K,
+            double *beta0, double *beta0s, double *beta1, double *beta1s, 
             double *lmemmu, double *memdfmu,
             double *memnu, double *memdfnu,
+            double *memod,
             int *srd, 
             int *numrec, 
             double *rectime,
+            int *srd2, 
+            int *numrec2, 
+            double *rectime2,
             int *maxcoupons,
             double *beta0proposal, double *beta1proposal, 
             double *lmemmuproposal, double *memnuproposal, 
             double *beta0sample, double *beta1sample,
             double *lmemmusample, double *memnusample,
-            int *samplesize, int *staken, int *burnin, int *interval,
+            int *samplesize, int *staken, int *burninbeta, int *interval,
             int *verbose
          );
-
-void MHcmptheta (int *Nk, int *K,
-            double *mu, double *dfmu, 
-            double *sigma,  double *dfsigma,
-            double *lnlamproposal, 
-            double *nuproposal, 
-            int *N, int *Npi, double *psample,
-            double *lnlamsample, double *nusample,
-            int *samplesize, int *staken, int *burnintheta, int *interval,
-            int *verbose
-         );
-
-#endif /* POSTERIORCMPVIS_H */
+#endif /* POSTERIORCMPWPVIS2_H */

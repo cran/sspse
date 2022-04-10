@@ -1,11 +1,12 @@
-poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
+poscmpwp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
                   K=2*max(c(s,s2)), n=length(s), n2=length(s2),
                   mean.prior.visibility=7, sd.prior.visibility=3,
                   df.mean.prior.visibility=1, df.sd.prior.visibility=5,
                   beta0.mean.prior=-3, beta1.mean.prior=0,
                   beta0.sd.prior=10, beta1.sd.prior=10,
                   mem.optimism.prior=1, df.mem.optimism.prior=5, 
-                  mem.scale.prior=1, df.mem.scale.prior=3, 
+                  mem.scale.prior=1, df.mem.scale.prior=5, 
+		  mem.overdispersion=5,
                   muproposal=0.1, 
                   nuproposal=0.15, 
                   beta0proposal=0.1, beta1proposal=0.001,
@@ -43,9 +44,8 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
     # Transform observed mean parametrization to log-normal
     # parametrization
     #
-    out <- cmp.to.natural(mu=mean.prior.visibility, sigma=sd.prior.visibility)
-    lnlam <- log(out$lambda)
-    nu <- out$nu
+    lnlam <- log(mean.prior.visibility)
+    nu <- sd.prior.visibility*sd.prior.visibility/mean.prior.visibility
     #
     if(visibility){
       dimsample <- 5+Np+4
@@ -77,14 +77,13 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
                   log=TRUE,
                   supplied=supplied,
                   verbose=verbose)
+    message(sprintf("Maximum population size set to %d.\n",prior$maxN),appendLF=FALSE)
     if(!is.null(s2)){
      if(visibility){
-      cat(sprintf("Using Capture-recapture measurement error model with K = %d.\n",K))
-      nk=tabulate(c(s,s2[!rc]),nbins=K)
-      Cret <- .C("gcmpvis2",
+      cat(sprintf("Using Capture-recapture Weighted Negative Binomial measurement error model with K = %d.\n",K))
+      Cret <- .C("gcmpwpvis2",
               pop12=as.integer(c(s, s2[!rc], rep(0,prior$maxN-length(s)-length(s2[!rc])))),
               pop21=as.integer(c(s2,sum(s)-sum(s2[rc]), rep(0,prior$maxN-length(s2)-1))),
-              nk=as.integer(nk),
               K=as.integer(K),
               n1=as.integer(n1),
               n2=as.integer(n2),
@@ -98,7 +97,8 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
               beta0.mean.prior=as.double(beta0.mean.prior), beta0.sd.prior=as.double(beta0.sd.prior),
               beta1.mean.prior=as.double(beta1.mean.prior), beta1.sd.prior=as.double(beta1.sd.prior),
               mem.optimism.prior=as.double(log(mem.optimism.prior)), df.mem.optimism.prior=as.double(df.mem.optimism.prior),
-              mem.scale.prior=as.double(mem.scale.prior), df.mem.scale.prior=as.double(df.mem.scale.prior),
+              mem.scale.prior=as.double(mem.scale.prior^2), df.mem.scale.prior=as.double(df.mem.scale.prior),
+              mem.overdispersion=as.double(mem.overdispersion),
               Np=as.integer(Np),
               srd=as.integer(s),
               numrec=as.integer(num.recruits),
@@ -117,7 +117,8 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
               sample=double(samplesize*dimsample),
               vsample=integer(samplesize*n1),
               vsample2=integer(samplesize*n2),
-              ppos=double(K),
+              posu=double(K),
+              posd=double(10*K),
               lpriorm=as.double(prior$lprior),
               burnintheta=as.integer(burnintheta),
               burninbeta=as.integer(burninbeta),
@@ -149,15 +150,15 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
               N=as.integer(prior$N),
               maxN=as.integer(prior$maxN),
               sample=double(samplesize*dimsample),
-              ppos=double(K),
+              posu=double(K),
               lpriorm=as.double(prior$lprior),
               burnintheta=as.integer(burnintheta),
               verbose=as.integer(verbose), PACKAGE="sspse")
      }
     }else{
      if(visibility){
-      cat(sprintf("Using CMP measurement error model with K = %d.\n",K))
-      Cret <- .C("gcmpvis",
+      cat(sprintf("Using Weighted Negative Binomial measurement error model with K = %d.\n",K))
+      Cret <- .C("gcmpwpvis",
               pop=as.integer(c(s,rep(0,prior$maxN-n1))),
               K=as.integer(K),
               n=as.integer(n1),
@@ -170,7 +171,8 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
               beta0.mean.prior=as.double(beta0.mean.prior), beta0.sd.prior=as.double(beta0.sd.prior),
               beta1.mean.prior=as.double(beta1.mean.prior), beta1.sd.prior=as.double(beta1.sd.prior),
               mem.optimism.prior=as.double(log(mem.optimism.prior)), df.mem.optimism.prior=as.double(df.mem.optimism.prior),
-              mem.scale.prior=as.double(mem.scale.prior), df.mem.scale.prior=as.double(df.mem.scale.prior),
+              mem.scale.prior=as.double(mem.scale.prior^2), df.mem.scale.prior=as.double(df.mem.scale.prior),
+              mem.overdispersion=as.double(mem.overdispersion),
               Np=as.integer(Np),
               srd=as.integer(s),
               numrec=as.integer(num.recruits),
@@ -185,7 +187,7 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
               sample=double(samplesize*dimsample),
               vsample=integer(samplesize*n1),
               posu=double(K),
-              posd=double(K),
+              posd=double(10*K),
               lpriorm=as.double(prior$lprior),
               burnintheta=as.integer(burnintheta),
               burninbeta=as.integer(burninbeta),
@@ -210,7 +212,7 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
               N=as.integer(prior$N),
               maxN=as.integer(prior$maxN),
               sample=double(samplesize*dimsample),
-              ppos=double(K),
+              posu=double(K),
               lpriorm=as.double(prior$lprior),
               burnintheta=as.integer(burnintheta),
               verbose=as.integer(verbose), PACKAGE="sspse")
@@ -235,22 +237,21 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
      }
      Cret$sample[,"mem.optimism"] <- exp(Cret$sample[,"mem.optimism"])
      #
-     # Transform natural CMP parametrization to mean
+     # Transform WP parametrization to mean
      # parametrization (for the mean visibility value)
      #
-     a <- Cret$sample[,c("mem.optimism","mem.scale")]
-     a[,1] <- a[,1]*mean(Cret$vsample)
-     a <- t(apply(a,1,cmp.to.mu.sd,K=K,force=TRUE,max.mu=K))
-     a[,1] <- Cret$sample[,"mem.optimism"]
-     colnames(a) <- c("mem.optimism","mem.sigma")
-     nas <- apply(a,1,function(x){any(is.na(x))})
-     if(!all(nas)){
-      inas <- sample(seq_along(nas)[!nas],size=sum(nas),replace=TRUE)
-      a[nas,] <- a[inas,]
-#     Cret$sample[,c("mem.optimism","mem.scale")] <- a
-      Cret$sample <- cbind(Cret$sample,a[,2])
-      colnames(Cret$sample)[ncol(Cret$sample)] <- "mem.sigma"
-     }
+     Cret$sample[,"mem.scale"] <- sqrt(Cret$sample[,"mem.scale"])
+#    a <- Cret$sample[,c("mem.optimism","mem.scale")]
+#    a[,2] <- sqrt(a[,1]*mean(Cret$vsample)*a[,2])
+#    colnames(a) <- c("mem.optimism","mem.sigma")
+#    nas <- apply(a,1,function(x){any(is.na(x))})
+#    if(!all(nas)){
+#     inas <- sample(seq_along(nas)[!nas],size=sum(nas),replace=TRUE)
+#     a[nas,] <- a[inas,]
+##    Cret$sample[,c("mem.optimism","mem.scale")] <- a
+#     Cret$sample <- cbind(Cret$sample,a[,2])
+#     colnames(Cret$sample)[ncol(Cret$sample)] <- "mem.sigma"
+#    }
     }else{
      colnamessample <- c("N","mu","sigma","visibility1","totalsize")
      max.mu <- 2*mean.prior.visibility
@@ -285,7 +286,7 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
 #   # PLN mean
 #   Cret$sample <- cbind(Cret$sample,Cret$sample[,c("mem.optimism")])
 #   colnames(Cret$sample)[ncol(Cret$sample)] <- c("mem.visibility.mean")
-#   mean.visibility <- sum(seq(along=Cret$nk)*Cret$ppos)
+#   mean.visibility <- sum(seq(along=Cret$nk)*Cret$posu)
 #   print(mean.visibility)
 #   Cret$sample[,"mem.visibility.mean"] <- exp(log(mean.visibility)+Cret$sample[,"mem.optimism"]+0.5*Cret$sample[,"mem.scale"])
     #
@@ -294,7 +295,7 @@ poscmp<-function(s,s2=NULL,rc=rep(FALSE,length=length(s2)),maxN=NULL,
     Cret$nk<-NULL
     Cret$predictive.visibility<-Cret$posu
     Cret$predictive.degree<-Cret$posd
-    Cret$ppos<-NULL
+    Cret$posu<-NULL
     endrun <- burnin+interval*(samplesize-1)
     attr(Cret$sample, "mcpar") <- c(burnin+1, endrun, interval)
     attr(Cret$sample, "class") <- "mcmc"

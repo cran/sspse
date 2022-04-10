@@ -19,18 +19,18 @@
 #define rsclinvchisq(df,scale) ((scale)*(df)/(rchisq(df)))
 
 void gcmp (int *pop,
-            int *nk, 
             int *K, 
             int *n, 
             int *samplesize, int *burnin, int *interval,
             double *mu, double *dfmu, 
-            double *sigma,  double *dfsigma,
+            double *sigma, double *dfsigma,
+            double *lnlam, double *nu,
             int *Npi,
             double *lnlamproposal, 
             double *nuproposal, 
             int *N, int *maxN, 
             double *sample, 
-            double *ppos, 
+            double *posu, 
             double *lpriorm, 
             int *burnintheta,
             int *verbose
@@ -43,7 +43,7 @@ void MHcmptheta (int *Nk, int *K,
             double *nuproposal, 
             int *N, int *Npi, double *psample,
             double *lnlamsample, double *nusample,
-            int *samplesize, int *staken, int *burnin, int *interval,
+            int *samplesize, int *staken, int *burnintheta, int *interval,
             int *verbose
          );
 

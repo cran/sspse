@@ -9,29 +9,28 @@
 #include <math.h>
 
 void gcmp (int *pop,
-            int *nk, 
-            int *K, 
-            int *n, 
+            int *K,
+            int *n,
             int *samplesize, int *burnin, int *interval,
-            double *mu, double *dfmu, 
+            double *mu, double *dfmu,
             double *sigma, double *dfsigma,
+            double *lnlam, double *nu,
             int *Npi,
-            double *lnlamproposal, 
-            double *nuproposal, 
-            int *N, int *maxN, 
-            double *sample, 
-            double *ppos, 
-            double *lpriorm, 
+            double *lnlamproposal,
+            double *nuproposal,
+            int *N, int *maxN,
+            double *sample,
+            double *posu,
+            double *lpriorm,
             int *burnintheta,
             int *verbose
                          ) {
   int dimsample, Np;
   int step, staken, getone=1, intervalone=1, verboseMHcmp = 0;
   int i, ni, Ni, Ki, isamp, iinterval, isamplesize, iburnin;
-  double lnlami, nui, dsamp;
-  double dmu, dsigma;
+  double mui, sigmai, lnlami, nui, dsamp;
+  double sigma2i;
   int tU, sizei, imaxN, imaxm, give_log0=0, give_log1=1;
-  int maxpop;
   double r, gammart, pis, Nd;
   double temp;
   double errval=0.0000000001, lzcmp;
@@ -47,14 +46,13 @@ void gcmp (int *pop,
   iinterval=(*interval);
   iburnin=(*burnin);
   Np=(*Npi);
-  dsigma=(*sigma);
-  dmu=(*mu);
 
   dimsample=5+Np;
 
   double *pi = (double *) malloc(sizeof(double) * Ki);
-  int *d = (int *) malloc(sizeof(int) * ni);
+  int *d = (int *) malloc(sizeof(int) * imaxN);
   int *b = (int *) malloc(sizeof(int) * ni);
+  int *nk = (int *) malloc(sizeof(int) * Ki);
   int *Nk = (int *) malloc(sizeof(int) * Ki);
   int *Nkpos = (int *) malloc(sizeof(int) * Ki);
   double *lpm = (double *) malloc(sizeof(double) * imaxm);
@@ -63,12 +61,14 @@ void gcmp (int *pop,
   double *lnlamsample = (double *) malloc(sizeof(double));
   double *nusample = (double *) malloc(sizeof(double));
 
-  maxpop=0;
+  for (i=0; i<Ki; i++){
+    nk[i]=0;
+  }
   for (i=0; i<ni; i++){
     if((pop[i]>0) && (pop[i] <= Ki)){ d[i]=pop[i];}
     if(pop[i]==0){ d[i]=1;}
     if(pop[i]>Ki){ d[i]=Ki;}
-    if(pop[i]>maxpop){maxpop=pop[i];}
+    nk[d[i]-1]=nk[d[i]-1]+1;
   }
   b[ni-1]=d[ni-1];
   for (i=(ni-2); i>=0; i--){
@@ -77,11 +77,14 @@ void gcmp (int *pop,
   for (i=0; i<Ki; i++){
      Nk[i]=nk[i];
      Nkpos[i]=0;
-     ppos[i]=0.;
+     posu[i]=0.;
+  }
+  for (i=ni; i<imaxN; i++){
+    d[i]=d[(int)trunc(10*unif_rand()+ni-10)];
   }
   tU=0;
   for (i=ni; i<Ni; i++){
-    tU+=pop[i];
+    tU+=d[i];
   }
   /* Draw initial phis */
   r=0.;
@@ -92,8 +95,8 @@ void gcmp (int *pop,
   for (i=0; i<Np; i++){
      psample[i] = 0.01;
   }
-  lnlamsample[0] = dmu;
-  nusample[0] = dsigma;
+  lnlamsample[0] = (*lnlam);
+  nusample[0] = (*nu);
 
   isamp = 0;
   step = -iburnin;
@@ -107,12 +110,12 @@ void gcmp (int *pop,
        lnlamsample, nusample, &getone, &staken, burnintheta, &intervalone, 
        &verboseMHcmp);
 
+     lnlami=lnlamsample[0];
+     nui=nusample[0];
+
      for (i=0; i<Np; i++){
       pdegi[i] = psample[i];
      }
-     lnlami=lnlamsample[0];
-     nui=nusample[0];
-//if(nui > 4.0 || lnlami > 4.5) Rprintf("lnlami %f nui %f dfmu %f\n", lnlami, nui, (*dfmu));
     }
 
     /* Compute the unit distribution (given the new theta = (lnlam, nu)) */
@@ -120,12 +123,14 @@ void gcmp (int *pop,
     lzcmp = zcmp(exp(lnlami), nui, errval, Ki, give_log1);
     if(lzcmp < -100000.0){continue;}
     pi[Np]=cmp(Np+1,lnlami,nui,lzcmp,give_log0);
+    pis+=pi[Np];
 //Rprintf("lnlami %f nui %f lzcmp %f pi %f\n", lnlami, nui, lzcmp, pi[Np]);
     for (i=Np+1; i<Ki; i++){
       pi[i]=pi[i-1]*exp(lnlami-nui*log((double)(i+1)));
+      pis+=pi[i];
     }
 //  Rprintf("isamp %d pis %f\n", isamp, pis);
-    pis=1.-exp(-lzcmp);
+//  pis=1.-exp(-lzcmp);
     for (i=0; i<Ki; i++){
       pi[i]/=pis;
 //Rprintf("i %d pi %f pi0 %f\n", i, pi[i], pi0[i], pis, pis0);
@@ -142,6 +147,15 @@ void gcmp (int *pop,
       pi[i]=pdegi[i];
     }
 
+    // Now computes mean and s.d. from log-lambda and nu
+    mui=0.0;
+    sigma2i=0.0;
+    for (i=0; i<Ki; i++){
+      mui+=pi[i]*(i+1);
+      sigma2i+=pi[i]*(i+1)*(i+1);
+    }
+    sigma2i=sigma2i-mui*mui;
+    sigmai = sqrt(sigma2i);
     /* Draw new N */
 
     gammart=0.;
@@ -175,7 +189,7 @@ void gcmp (int *pop,
     /* Draw phis */
     tU=0;
     for (i=ni; i<Ni; i++){
-      tU+=pop[i];
+      tU+=d[i];
     }
     r=0.;
     for (i=0; i<ni; i++){
@@ -212,7 +226,7 @@ void gcmp (int *pop,
        }
       }
 //    if(sizei >= Ki){sizei=Ki-1;}
-      pop[i]=sizei;
+      d[i]=sizei;
 //    if((sizei <= 0) | (sizei > Ki-1)) Rprintf("sizei %d r %f\n", sizei,r);
       Nk[sizei-1]=Nk[sizei-1]+1;
     }
@@ -222,8 +236,8 @@ void gcmp (int *pop,
       sample[isamp*dimsample  ]=Nd;
 //if(nui > 4.0 || lnlami > 4.5) Rprintf("sample: %f %f\n", lnlami,nui);
 // Rprintf("sample: %f %f\n", lnlami,nui);
-      sample[isamp*dimsample+1]=lnlami;
-      sample[isamp*dimsample+2]=nui;
+      sample[isamp*dimsample+1]=mui;
+      sample[isamp*dimsample+2]=sigmai;
       sample[isamp*dimsample+3]=(double)(Nk[0]);
       temp=0.0;
       for (i=0; i<Ki; i++){
@@ -235,7 +249,7 @@ void gcmp (int *pop,
       }
       for (i=0; i<Ki; i++){
         Nkpos[i]=Nkpos[i]+Nk[i];
-        ppos[i]+=((Nk[i]*1.)/Nd);
+        posu[i]+=((Nk[i]*1.)/Nd);
       }
       isamp++;
       if (*verbose && isamplesize==(isamp*(isamplesize/isamp))) Rprintf("Taken %d samples...\n", isamp);
@@ -246,7 +260,7 @@ void gcmp (int *pop,
   dsamp=((double)isamp);
   for (i=0; i<Ki; i++){
     nk[i]=Nkpos[i];
-    ppos[i]/=dsamp;
+    posu[i]/=dsamp;
   }
   for (i=0; i<ni; i++){
      pop[i]=d[i];
@@ -258,6 +272,7 @@ void gcmp (int *pop,
   free(pdegi);
   free(b);
   free(Nk);
+  free(nk);
   free(Nkpos);
   free(lpm);
   free(lnlamsample);
@@ -271,12 +286,12 @@ void MHcmptheta (int *Nk, int *K,
             double *nuproposal, 
             int *N, int *Npi, double *psample,
             double *lnlamsample, double *nusample,
-            int *samplesize, int *staken, int *burnin, int *interval,
+            int *samplesize, int *staken, int *burnintheta, int *interval,
             int *verbose
          ) {
   int Np;
   int step, taken, give_log1=1, give_log0=0;
-  int i, Ki, Ni, isamp, iinterval, isamplesize, iburnin;
+  int i, Ki, Ni, isamp, iinterval, isamplesize, iburnintheta;
   double ip, cutoff;
   double mui, mustar, lnlamstar, lnlami, lp;
   double pis, pstars;
@@ -301,7 +316,7 @@ void MHcmptheta (int *Nk, int *K,
   Ni=(*N);
   isamplesize=(*samplesize);
   iinterval=(*interval);
-  iburnin=(*burnin);
+  iburnintheta=(*burnintheta);
   ddfmu=(*dfmu);
   rdfmu=sqrt(ddfmu);
   ddfsigma=(*dfsigma);
@@ -313,7 +328,7 @@ void MHcmptheta (int *Nk, int *K,
 
   // First set starting values
   isamp = taken = 0;
-  step = -iburnin;
+  step = -iburnintheta;
   pis=1.;
   for (i=0; i<Np; i++){
     pdegi[i] = psample[i];
@@ -323,6 +338,9 @@ void MHcmptheta (int *Nk, int *K,
     odegi[i] = log(pdegi[i]/pis);
   }
   lnlami = lnlamsample[0];
+  if(rdfmu <= 0.0){
+    lnlamstar = lnlami;
+  }
   nui = nusample[0];
 // if(nui > 4.0 || lnlami > 4.5) Rprintf("%f %f\n", lnlami,nui);
 // Rprintf("%f %f\n", lnlami,nui);
@@ -331,10 +349,12 @@ void MHcmptheta (int *Nk, int *K,
   lzcmp = zcmp(exp(lnlami), nui, errval, 2*Ki, give_log1);
 //Rprintf("lnlami %f nui %f lzcmp %f\n", lnlami, nui, lzcmp);
   pi[Np]=cmp(Np+1,lnlami,nui,lzcmp,give_log0);
+  pis+=pi[Np];
   for (i=Np+1; i<Ki; i++){
     pi[i]=pi[i-1]*exp(lnlami-nui*log((double)(i+1)));
+    pis+=pi[i];
   }
-  pis=1.-exp(-lzcmp);
+//pis=1.-exp(-lzcmp);
   for (i=0; i<Ki; i++){
     pi[i]/=pis;
 //Rprintf("i %d pi %f pi0 %f\n", i, pi[i], pi0[i], pis, pis0);
@@ -364,10 +384,15 @@ void MHcmptheta (int *Nk, int *K,
     sigma2i+=pi[i]*(i+1)*(i+1);
   }
   sigma2i=sigma2i-mui*mui;
-
   sigmai  = sqrt(sigma2i);
-  pithetai = dnorm(mui, dmu, sigmai/rdfmu, give_log1);
-  pithetai = pithetai+dsclinvchisq(sigma2i, ddfsigma, dsigma2);
+
+//Rprintf("mu %f sigma %f\n", *mu, (*sigma));
+//Rprintf("mui %f sigmai %f\n", mui, sigmai);
+
+  pithetai = dsclinvchisq(sigma2i, ddfsigma, dsigma2);
+  if(rdfmu > 0.0){
+   pithetai = pithetai + dnorm(mui, dmu, sigmai/rdfmu, give_log1);
+  }
 
   // Now do the MCMC updates (starting with the burnin updates)
   while (isamp < isamplesize) {
@@ -386,7 +411,9 @@ void MHcmptheta (int *Nk, int *K,
       pdegstar[i]/=pis;
     }
     /* Now the degree distribution (log) mean and s.d. parameters */
-    lnlamstar = rnorm(lnlami, dlnlamproposal);
+    if(rdfmu > 0.0){
+     lnlamstar = rnorm(lnlami, dlnlamproposal);
+    }
     nustar = nui*exp(rnorm(0., dnuproposal));
     /* Check for magnitude */
 
@@ -395,11 +422,13 @@ void MHcmptheta (int *Nk, int *K,
 //if(nustar > 4.0 || lnlamstar > 4.5)  Rprintf("lnlamstar %f nustar %f lzcmp %f\n", lnlamstar, nustar, lzcmp);
 //    if(nustar > 4.0 || lnlamstar > 4.5){step++;continue;}
     pstar[Np]=cmp(Np+1,lnlamstar,nustar,lzcmp,give_log0);
+    pstars+=pstar[Np];
 //  Rprintf("lnlamstar %f nustar %f lzcmp %f pstar %f\n", lnlamstar, nustar, lzcmp,pstar[Np]);
     for (i=Np+1; i<Ki; i++){
       pstar[i]=pstar[i-1]*exp(lnlamstar-nustar*log((double)(i+1)));
+      pstars+=pstar[i];
     }
-    pstars=1.-exp(-lzcmp);
+//  pstars=1.-exp(-lzcmp);
     for (i=0; i<Ki; i++){
       pstar[i]/=pstars;
 //if(pstar[Np] < 0.00001){Rprintf("i %d pstar %f pi %f\n", i, pstar[i], pi[i]);}
@@ -439,8 +468,10 @@ void MHcmptheta (int *Nk, int *K,
     /* Calculate pieces of the posterior. */
     qnustar = dnorm(log(nustar/nui)/dnuproposal,0.,1.,give_log1)
                   -log(dnuproposal*nustar);
-    pithetastar = dnorm(mustar, dmu, sigmastar/rdfmu, give_log1);
-    pithetastar = pithetastar+dsclinvchisq(sigma2star, ddfsigma, dsigma2);
+    pithetastar = dsclinvchisq(sigma2star, ddfsigma, dsigma2);
+    if(rdfmu > 0.0){
+     pithetastar = pithetastar + dnorm(mustar, dmu, sigmastar/rdfmu, give_log1);
+    }
     qnui = dnorm(log(nui/nustar)/dnuproposal,0.,1.,give_log1)
                -log(dnuproposal*nui);
 
@@ -472,7 +503,7 @@ void MHcmptheta (int *Nk, int *K,
         odegi[i] = odegstar[i];
         pdegi[i] = pdegstar[i];
       }
-      lnlami    = lnlamstar;
+      lnlami = lnlamstar;
       nui = nustar;
       qnui = qnustar;
       pithetai = pithetastar;

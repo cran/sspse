@@ -1,4 +1,4 @@
-cmp.natural <- function (mu,sigma,K=max(ceiling(mu+10*sigma),10),guess=NULL) 
+cmp.to.natural <- function (mu,sigma,K=max(ceiling(mu+10*sigma),10),guess=NULL) 
 {
 # converts mean to natural
 # natural is log(lambda), -nu
@@ -20,9 +20,11 @@ cmp.natural <- function (mu,sigma,K=max(ceiling(mu+10*sigma),10),guess=NULL)
     fit = c(lambda = lambda, nu = nu, result)
     return(fit)
 }
-cmp.mu <- function (p,K=1000,cutoff=1,max.mu=50) 
+cmp.to.mu.sd <- function (p,K=1000,cutoff=1,max.mu=5,force=FALSE) 
 {
 # converts natural to mean
+# p[1] = lambda
+# p[2] = nu
         j <- cutoff:K
 #       a <- dcmp(x=j, lambda=p[1], nu=p[2], err=0.000000001)
         a <- j*log(p[1])-p[2]*lgamma(j+1.0)
@@ -44,7 +46,7 @@ cmp.mu <- function (p,K=1000,cutoff=1,max.mu=50)
 	mu <- sum(a*j)
 	sd <- sqrt(sum(a*j*j)-mu*mu)
 #   cat(sprintf("K= %d mu= %f sd= %f\n",K,mu,sd))
-        if(mu > max.mu){
+        if(!force & mu > max.mu){
           return(c(NA,NA))
         }else{
           return(c(mu,sd))
