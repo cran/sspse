@@ -4,7 +4,7 @@
 \alias{summary.sspse}
 \title{Summarizing Population Size Estimation Model Fits}
 \usage{
-\method{summary}{sspse}(object, support = 1000, HPD.level = 0.95, ...)
+\method{summary}{sspse}(object, support = 1000, HPD.level = 0.95, method = "bgk", ...)
 }
 \arguments{
 \item{object}{an object of class \code{"sspse"}, usually, a result of a call
@@ -15,6 +15,9 @@ the estimated posterior density function.}
 
 \item{HPD.level}{numeric; probability level of the highest probability
 density interval determined from the estimated posterior.}
+
+\item{method}{character; The method to use for density estimation (default Gaussian Kernel; "bgk").
+"Bayes" uses a Bayesian density estimator which has good properties.}
 
 \item{\dots}{further arguments passed to or from other methods.}
 }
@@ -57,7 +60,7 @@ data(fauxmadrona)
 # Here interval=1 so that it will run faster. It should be higher in a 
 # real application.
 fit <- posteriorsize(fauxmadrona, median.prior.size=1000,
-                                 burnin=100, interval=1, samplesize=100)
+                                 burnin=20, interval=1, samplesize=100)
 summary(fit)
 
 }

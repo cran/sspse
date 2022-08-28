@@ -18,6 +18,8 @@
   include.tree = TRUE,
   cex.main = 1,
   log.degree = "",
+  layout = c(3, 2),
+  method = "bgk",
   ...
 )
 }
@@ -74,6 +76,13 @@ In particular, it typically produces a positive visibility (compared to a possib
 of the estimated visibilites for each respondent verses their reported network sizes be logarithmic. 
 A value of \code{"y"} uses a logarithmic visibility axis and \code{"xy"} both. The default is \code{""}, no logarithmic axes.}
 
+\item{layout}{a vector of the form ‘c(nv, nc)’. The produced plots, in particular the MCMC diagnostics, will be draw in 
+figures in ‘nv’-by-‘nc’ arrays per page. `nc` is typically 2 to have the trace plots on the left and density plots on the right.
+`nv` is then the number of variables per page, by default 3.}
+
+\item{method}{character; The method to use for density estimation (default Gaussian Kernel; "bgk").
+"Bayes" uses a Bayesian density estimator which has good properties.}
+
 \item{\dots}{further arguments passed to or from other methods.}
 }
 \description{
@@ -99,7 +108,7 @@ data(fauxmadrona)
 # Here interval=1 so that it will run faster. It should be higher in a 
 # real application.
 fit <- posteriorsize(fauxmadrona, median.prior.size=1000,
-                                 burnin=100, interval=1, samplesize=100)
+                                 burnin=20, interval=1, samplesize=100)
 summary(fit)
 # Let's look at some MCMC diagnostics
 plot(fit, mcmc=TRUE)
@@ -115,11 +124,11 @@ Sampling: An Assessment of Current Methodology}, Sociological Methodology
 
 Gile, Krista J. and Handcock, Mark S. (2014) \pkg{sspse}: Estimating Hidden 
 Population Size using Respondent Driven Sampling Data
-R package, Los Angeles, CA.  Version 0.5, \url{http://hpmrg.org}.
+R package, Los Angeles, CA.  Version 0.5, \url{https://github.com/HPMRG}.
 
 Handcock MS (2003).  \pkg{degreenet}: Models for Skewed Count Distributions
 Relevant to Networks.  Statnet Project, Seattle, WA.  Version 1.2,
-\url{http://statnetproject.org}.
+\url{https://statnet.org}.
 
 Handcock, Mark S., Gile, Krista J. and Mar, Corinne M. (2014)
 \emph{Estimating Hidden Population Size using Respondent-Driven Sampling
