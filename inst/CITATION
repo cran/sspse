@@ -9,16 +9,18 @@ citHeader("If you are using 'sspse' for research that will be published, we requ
 bibentry(bibtype="Manual",
          title = paste(meta$Package,": ", meta$Title, sep=""),
          author = personList(as.person("Mark S. Handcock"),
-                             as.person("Krista J. Gile")),
+                             as.person("Krista J. Gile"),
+                             as.person("Brian  J. Kim"),
+                             as.person("Katherine R. McLaughlin")),
          year         = substr(meta$Date,1,4),
          note         = paste("R package version ", meta$Version, sep=""),
          address      = "Los Angeles, CA",
          url          = "https://CRAN.R-project.org/package=sspse",
          
          textVersion = 
-         paste("Mark S. Handcock and Krista J. Gile (2014) ", 
+         paste("Mark S. Handcock, Krista J. Gile, Brian  J. Kim, Katherine R. McLaughlin (2022) ", 
                paste(meta$Package,": ", meta$Title, sep=""),
-               ", Version ", meta$Version, ". Project home page at http://hpmrg.org",
+               ", Version ", meta$Version, ". Project home page at https://hpmrg.org",
                ",", " URL https://CRAN.R-project.org/package=sspse.",
                sep="")
          )
