@@ -54,9 +54,6 @@
 #' @param log.degree a character string which contains \code{"x"} if the (horizontal) degree axis in the plot
 #' of the estimated visibilites for each respondent verses their reported network sizes be logarithmic. 
 #' A value of \code{"y"} uses a logarithmic visibility axis and \code{"xy"} both. The default is \code{""}, no logarithmic axes.
-#' @param layout a vector of the form ‘c(nv, nc)’. The produced plots, in particular the MCMC diagnostics, will be draw in 
-#' figures in ‘nv’-by-‘nc’ arrays per page. `nc` is typically 2 to have the trace plots on the left and density plots on the right.
-#' `nv` is then the number of variables per page, by default 3.
 #' @param method character; The method to use for density estimation (default Gaussian Kernel; "bgk").
 #' "Bayes" uses a Bayesian density estimator which has good properties.
 #' @param \dots further arguments passed to or from other methods.
@@ -77,11 +74,11 @@
 #' 
 #' Gile, Krista J. and Handcock, Mark S. (2014) \pkg{sspse}: Estimating Hidden 
 #' Population Size using Respondent Driven Sampling Data
-#' R package, Los Angeles, CA.  Version 0.5, \url{https://hpmrg.org/sspse/}.
+#' R package, Los Angeles, CA.  Version 0.5, \url{https://hpmrg.org}.
 #' 
 #' Handcock MS (2003).  \pkg{degreenet}: Models for Skewed Count Distributions
 #' Relevant to Networks.  Statnet Project, Seattle, WA.  Version 1.2,
-#' \url{https://statnet.org/}.
+#' \url{https://statnet.org}.
 #' 
 #' Handcock, Mark S., Gile, Krista J. and Mar, Corinne M. (2014)
 #' \emph{Estimating Hidden Population Size using Respondent-Driven Sampling
@@ -93,10 +90,10 @@
 #' @examples
 #' 
 #' data(fauxmadrona)
-#' # Here interval=1 so that it will run faster. It should be higher in a 
-#' # real application.
+#' # Here interval=1 and samplesize=50 so that it will run faster. It should be much higher
+#' # in a real application.
 #' fit <- posteriorsize(fauxmadrona, median.prior.size=1000,
-#'                                  burnin=20, interval=1, samplesize=100)
+#'                                   burnin=10, interval=1, samplesize=50)
 #' summary(fit)
 #' # Let's look at some MCMC diagnostics
 #' plot(fit, mcmc=TRUE)
@@ -106,8 +103,7 @@
 #' @export
 plot.sspse <- function(x,
 		       xlim=NULL,support=1000,HPD.level=0.90,N=NULL,ylim=NULL,mcmc=FALSE,type="all",
-		       main="Posterior for population size",smooth=4,include.tree=TRUE,cex.main=1,log.degree="",
-                       layout=c(3,2),method="bgk",...){
+		       main="Posterior for population size",smooth=4,include.tree=TRUE,cex.main=1,log.degree="",method="bgk",...){
   p.args <- as.list( sys.call() )[-c(1,2)]
   formal.args<-formals(sys.function())[-c(1)]
 
@@ -127,15 +123,12 @@ attr(out,"mcpar") <- attr(x$sample,"mcpar")
 attr(out,"class") <- attr(x$sample,"class")
 # sabline <- function(v,...){graphics::segments(x0=v,...,y0=control$ylim[1],y1=control$ylim[2])}
 sabline <- function(v,...){graphics::segments(x0=v,...,y0=graphics::par("usr")[3],y1=graphics::par("usr")[4])}
-oldpar <- par("mfrow")
-par(mfrow=layout)
 if(!is.null(out) & control$type == "mcmc"){
   mcmc.len <- min(1000, nrow(out))
   a=round(seq.int(from=1,to=nrow(out),length.out=mcmc.len))
   mcp <- attr(out,"mcpar")
   b=coda::mcmc(out[a,],start=mcp[1],end=mcp[2],thin=floor((mcp[2]-mcp[1])/mcmc.len + 1))
-  graphics::plot(b, auto.layout = FALSE)
-  par(mfrow=oldpar)
+  graphics::plot(b)
   return(invisible())
 }
 #suppressMessages(require(locfit,quietly=TRUE))
@@ -356,6 +349,5 @@ if(control$type %in% c("prior","all")){
 # round(mp),round(l50),round(map),round(l90),round(hpd[1]),round(hpd[2])))
 #
 }
-par(mfrow=oldpar)
 invisible()
 }
