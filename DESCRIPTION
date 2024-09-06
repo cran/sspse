@@ -1,7 +1,7 @@
 Package: sspse
 Type: Package
-Version: 1.1.0-1
-Date: 2024-03-27
+Version: 1.1.0-2
+Date: 2024-09-05
 Title: Estimating Hidden Population Size using Respondent Driven
         Sampling Data
 Authors@R: c(
@@ -23,13 +23,13 @@ License: GPL-3 + file LICENSE
 URL: https://hpmrg.org
 Imports: scam, coda
 Encoding: UTF-8
-RoxygenNote: 7.3.1
+RoxygenNote: 7.3.2
 NeedsCompilation: yes
-Packaged: 2024-03-28 17:00:47 UTC; handcock
+Packaged: 2024-09-06 19:42:18 UTC; handcock
 Author: Mark S. Handcock [aut, cre, cph]
     (<https://orcid.org/0000-0002-9985-2785>),
   Krista J. Gile [aut, cph],
   Brian Kim [ctb],
   Katherine R. McLaughlin [ctb]
 Repository: CRAN
-Date/Publication: 2024-03-29 01:20:02 UTC
+Date/Publication: 2024-09-06 21:00:06 UTC
