@@ -2,13 +2,13 @@
 /* Computation of the log-likelihood and marginal posterior of size*/
 /*******************************************************************/
 
-#include "posteriorcmpdisease_u_given_d.h"
+#include "posteriorcmpdisease_Ising.h"
 #include "cmp.h"
 #include <R.h>
 #include <Rmath.h>
 #include <math.h>
 
-void gcmpdisease (int *pop, int *dis,
+void gcmpdiseasepaired (int *pop, int *dis,
             int *K,
             int *n,
             int *samplesize, int *warmup, int *interval,
@@ -40,9 +40,11 @@ void gcmpdisease (int *pop, int *dis,
   double mu0i, sigma0i, lnlam0i, nu0i;
   double mu1i, sigma1i, lnlam1i, nu1i;
   double tau, ptau;
+  double ptau1, ptau2, ptau3, ptau4;
+  double tau1;
   double sigma2i;
   int tU, sizei, imaxN, imaxm, give_log0=0, give_log1=1;
-  int discountn, discount;
+  int discountn, discount, dispairsn, dispairs;
   double r, Nd;
   double gammart, gamma0rt, gamma1rt;
   double p0is, p1is;
@@ -62,14 +64,22 @@ void gcmpdisease (int *pop, int *dis,
   Np0=(*Np0i);
   Np1=(*Np1i);
   
-  dimsample=12+Np0+Np1;
+  dimsample=14+Np0+Np1;
 
   double *p0i = (double *) malloc(sizeof(double) * Ki);
   double *p1i = (double *) malloc(sizeof(double) * Ki);
   int *u = (int *) malloc(sizeof(int) * imaxN);
   int *b = (int *) malloc(sizeof(int) * ni);
+  int *Nk00 = (int *) malloc(sizeof(int) * Ki);
+  int *Nk10 = (int *) malloc(sizeof(int) * Ki);
+  int *Nk01 = (int *) malloc(sizeof(int) * Ki);
+  int *Nk11 = (int *) malloc(sizeof(int) * Ki);
   int *Nk0 = (int *) malloc(sizeof(int) * Ki);
   int *Nk1 = (int *) malloc(sizeof(int) * Ki);
+  int *nk00 = (int *) malloc(sizeof(int) * Ki);
+  int *nk10 = (int *) malloc(sizeof(int) * Ki);
+  int *nk01 = (int *) malloc(sizeof(int) * Ki);
+  int *nk11 = (int *) malloc(sizeof(int) * Ki);
   int *nk0 = (int *) malloc(sizeof(int) * Ki);
   int *nk1 = (int *) malloc(sizeof(int) * Ki);
   int *Nk0pos = (int *) malloc(sizeof(int) * Ki);
@@ -84,10 +94,15 @@ void gcmpdisease (int *pop, int *dis,
   double *nusample0 = (double *) malloc(sizeof(double) * isamplesize);
   double *nusample1 = (double *) malloc(sizeof(double) * isamplesize);
   double *tausample = (double *) malloc(sizeof(double) * isamplesize);
+  double *tau1sample = (double *) malloc(sizeof(double) * isamplesize);
 
   for (i=0; i<Ki; i++){
     nk0[i]=0;
     nk1[i]=0;
+    nk00[i]=0;
+    nk10[i]=0;
+    nk01[i]=0;
+    nk11[i]=0;
   }
   uprob=ni;
   for (i=0; i<ni; i++){
@@ -101,6 +116,22 @@ void gcmpdisease (int *pop, int *dis,
       nk0[u[i]-1]=nk0[u[i]-1]+1;
     }
   }
+  for (i=1; i<ni; i++){
+    // Create sample counts from the data
+    if( dis[i-1]==1 ){
+     if( dis[i]==1 ){
+      nk11[u[i]-1]=nk11[u[i]-1]+1;
+     }else{
+      nk10[u[i]-1]=nk10[u[i]-1]+1;
+     }
+    }else{
+     if( dis[i]==1 ){
+      nk01[u[i]-1]=nk01[u[i]-1]+1;
+     }else{
+      nk00[u[i]-1]=nk00[u[i]-1]+1;
+     }
+    }
+  }
   uprob/=ni;
   uprob = 0.5 + uprob/2.0;
   b[ni-1]=u[ni-1];
@@ -108,9 +139,13 @@ void gcmpdisease (int *pop, int *dis,
     b[i]=b[i+1]+u[i];
   }
   for (i=0; i<Ki; i++){
+     Nk00[i]=nk00[i];
+     Nk01[i]=nk01[i];
      Nk0[i]=nk0[i];
      Nk0pos[i]=0;
      pos0u[i]=0.;
+     Nk10[i]=nk10[i];
+     Nk11[i]=nk11[i];
      Nk1[i]=nk1[i];
      Nk1pos[i]=0;
      pos1u[i]=0.;
@@ -125,17 +160,24 @@ void gcmpdisease (int *pop, int *dis,
   /* Draw initial phis */
   r=0.;
   discountn=0;
+  dispairsn=0;
   for (i=0; i<ni; i++){
     r+=(exp_rand()/(tU+b[i]));
     discountn+=dis[i];
+    if(i > 0) dispairsn+=((dis[i-1]==dis[i]));
   }
   discount=discountn;
+  dispairs=dispairsn;
   for (i=ni; i<Ni; i++){
     discount+=dis[i];
+    dispairs+=((dis[i-1]==dis[i]));
   }
 
   tausample[0] = -1.386294;  // logit(0.2)
   tausample[0] = -6.57879;  // logit(0.082)
+  tausample[0] = -1.3793;  // logit(0.082)
+  tausample[0] = 0.;  // logit(0.082)
+  tau1sample[0] = 0.0;  // logit(0.082)
 
   for (i=0; i<Np0; i++){
      psample0[i] = 0.01;
@@ -159,13 +201,14 @@ void gcmpdisease (int *pop, int *dis,
     /*  */
     if (step == -iwarmup || step % 10 == 0) { 
 // Rprintf("Started %d %f\n", step, lnlamsample0[0]);
-     MHcmpthetadisease(dis, u, Nk0,Nk1,K, &discount,
+     MHcmpthetadiseasepaired(dis, u, Nk00, Nk10, Nk01, Nk11,
+       Nk0, Nk1, K,
        mu0,mu1,dfmu,sigma0,sigma1,
        dfsigma,lnlamproposal,nuproposal,tauproposal,
        &Ni, &Np0, &Np1, psample0, psample1,
        lnlamsample0, nusample0,
        lnlamsample1, nusample1,
-       tausample,
+       tausample, tau1sample,
        logdiseaseprior,
        &getone, &staken, warmuptheta, &intervalone, 
        &verboseMHcmp);
@@ -178,6 +221,7 @@ void gcmpdisease (int *pop, int *dis,
      nu1i=nusample1[0];
 
      tau=tausample[0];
+     tau1=tau1sample[0];
 
      for (i=0; i<Np0; i++){
       pdeg0i[i] = psample0[i];
@@ -278,12 +322,37 @@ void gcmpdisease (int *pop, int *dis,
 // gamma1rt=log(gamma1rt);
 //  gammart=0.;
 //  for (i=0; i<Ni; i++){
-//    ptau = exp(tau)/(1.+exp(tau));
-//    gammart+=(1.-ptau)*gamma0rt+ptau*gamma1rt;
+//    if(i > 0){
+//      ptau4 = exp(tau+(dis[i-1]*dis[i])*tau1) / (1.+exp(tau+(dis[i-1]*dis[i])*tau1));
+//    }else{
+//      ptau4 = exp(tau) / (1.+exp(tau));
+//    }
+// // ptau = exp(tau)/(1.+exp(tau));
+//    gammart+=(1.-ptau4)*gamma0rt+ptau4*gamma1rt;
 //  }
 //  gammart=log(gammart / Ni);
-    ptau=exp(tau)/(1.+exp(tau));
+//  //
+//  Rprintf("ptau %f\n", ptau);
+    ptau = exp(tau) / (1. + exp(tau));
+    ptau4= exp(tau + tau1)  / (1. + exp(tau+tau1));
+    ptau2 = 1. / (1. + exp(tau1 - tau));
+    ptau1 = ptau4 - ptau2;
+    ptau3 = ptau2 / (1 - ptau4 + ptau2);
+    ptau = ptau3 + (ptau - ptau3) * (1. - pow(ptau1,(double)Ni)) / (Ni*(1. - ptau1));
+//  ptau = 0.2;
+    ptau3 = ((double)discount) / ((double)Ni);
+//  Rprintf("ptau %f ptau3 %f\n", ptau, ptau3);
+//  gammart=(1.-ptau4)*gamma0rt+ptau4*gamma1rt;
     gammart=log((1.-ptau)*gamma0rt+ptau*gamma1rt);
+//  
+//  for (i=1; i<Ni; i++){
+//    ptau4 = exp(dis[i-1]*tau1) / (1.+exp(tau1));
+//    gammart+=(1.-ptau4)*gamma0rt+ptau4*gamma1rt;
+//  }
+//  gammart=log(gammart / Ni);
+//
+//  ptau=exp(tau)/(1.+exp(tau));
+//  gammart=log((1.-ptau)*gamma0rt+ptau*gamma1rt);
 
 // Rprintf("gammart %f orig %f \n", gammart, log((1.-0.2)*gamma0rt+0.2*gamma1rt));
 
@@ -314,6 +383,10 @@ void gcmpdisease (int *pop, int *dis,
     for (i=0; i<Ki; i++){
       Nk0[i]=nk0[i];
       Nk1[i]=nk1[i];
+      Nk00[i]=nk00[i];
+      Nk11[i]=nk11[i];
+      Nk01[i]=nk01[i];
+      Nk10[i]=nk10[i];
     }
     // Set up p0i and p1i to be cumulative for random draws
     for (i=1; i<Ki; i++){
@@ -328,8 +401,26 @@ void gcmpdisease (int *pop, int *dis,
        sizei=1000000;
        while(log(1.0-unif_rand()) > -r*sizei){
         /* First propose unseen disease status for unit i */
-        if(unif_rand() < ptau){
-          dis[i]=1;
+      // Add paired on disease
+   //   if(i > 0){
+   //     ptau4 = exp(tau+(dis[i-1]*dis[i])*tau1) / (1.+exp(tau+(dis[i-1]*dis[i])*tau1));
+   //   }else{
+   //     ptau4 = exp(tau) / (1.+exp(tau));
+   //   }
+   //   Next the sequential version
+    //  if(dis[i-1]==1){
+    //    ptau4 = exp(tau1) / (1.+exp(tau1));
+    //  }else{
+    //    ptau4 = 1. / (1.+exp(tau1));
+    //  }
+    //   ptau4 = exp(tau) / (1.+exp(tau));
+        if(dis[i-1] == 1){
+          ptau4 = exp(tau+tau1) / (1.+exp(tau + tau1));
+        }else{
+          ptau4 = 1. / (1.+exp(tau1 - tau));
+        }
+        if(unif_rand() < ptau4){
+	  dis[i] = 1;
           /* Now propose unseen size for unit i based on disease status */
           /* In the next two lines a sizei is chosen */
           /* with parameters lnlam1i and nu1i */
@@ -338,7 +429,7 @@ void gcmpdisease (int *pop, int *dis,
             if(temp <= p1i[sizei-1]) break;
           }
         }else{
-          dis[i]=0;
+	  dis[i] = 0;
           /* Now propose unseen size for unit i based on non-disease status */
           /* In the next two lines a sizei is chosen */
           /* with parameters lnlam0i and nu0i */
@@ -352,8 +443,18 @@ void gcmpdisease (int *pop, int *dis,
       u[i]=sizei; // This sets the unit size for this (unobserved) unit
       if(dis[i]==1){
         Nk1[sizei-1]=Nk1[sizei-1]+1;
+        if(dis[i-1]==1){
+          Nk11[sizei-1]=Nk11[sizei-1]+1;
+        }else{
+          Nk01[sizei-1]=Nk01[sizei-1]+1;
+	}
       }else{
         Nk0[sizei-1]=Nk0[sizei-1]+1;
+        if(dis[i-1]==1){
+          Nk10[sizei-1]=Nk10[sizei-1]+1;
+        }else{
+          Nk00[sizei-1]=Nk00[sizei-1]+1;
+	}
       }
   //  if(unif_rand() < ptau){
   //    dis[i]=1;
@@ -362,8 +463,10 @@ void gcmpdisease (int *pop, int *dis,
   //  }
     }
     discount=discountn;
+    dispairs=dispairsn;
     for (i=ni; i<Ni; i++){
       discount+=dis[i];
+      dispairs+=(dis[i-1]==dis[i]);
     }
 
     if (step > 0 && step % iinterval == 0) { 
@@ -376,22 +479,24 @@ void gcmpdisease (int *pop, int *dis,
       sample[isamp*dimsample+4]=sigma1i;
       sample[isamp*dimsample+5]=(double)(Nk0[0]+Nk1[0]);
       sample[isamp*dimsample+6]=tau;
+      sample[isamp*dimsample+7]=tau1;
       temp=0.0;
       for (i=0; i<Ki; i++){
         temp+=(i+1.0)*Nk0[i];
       }
-      sample[isamp*dimsample+7]=temp;
+      sample[isamp*dimsample+8]=temp;
       temp=0.0;
       for (i=0; i<Ki; i++){
         temp+=(i+1.0)*Nk1[i];
       }
-      sample[isamp*dimsample+8]=temp;
-      sample[isamp*dimsample+9]=(double)(discount);
+      sample[isamp*dimsample+9]=temp;
+      sample[isamp*dimsample+10]=(double)(discount);
+      sample[isamp*dimsample+11]=(double)(dispairs);
       for (i=0; i<Np0; i++){
-        sample[isamp*dimsample+10+i]=pdeg0i[i];
+        sample[isamp*dimsample+12+i]=pdeg0i[i];
       }
       for (i=0; i<Np1; i++){
-        sample[isamp*dimsample+10+Np0+i]=pdeg1i[i];
+        sample[isamp*dimsample+12+Np0+i]=pdeg1i[i];
       }
       for (i=0; i<Ki; i++){
         Nk0pos[i]=Nk0pos[i]+Nk0[i];
@@ -435,9 +540,11 @@ void gcmpdisease (int *pop, int *dis,
   free(nusample0);
   free(nusample1);
   free(tausample);
+  free(tau1sample);
 }
 
-void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idiscount,
+void MHcmpthetadiseasepaired (int *dis, int *u, int *Nk00, int *Nk10, int *Nk01, int *Nk11,
+            int *Nk0, int *Nk1, int *K,
             double *mu0, double *mu1, double *dfmu, 
             double *sigma0, double *sigma1, double *dfsigma,
             double *lnlamproposal, 
@@ -447,7 +554,7 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
 	    double *psample0, double *psample1,
             double *lnlamsample0, double *nusample0,
             double *lnlamsample1, double *nusample1,
-            double *tausample,
+            double *tausample, double *tau1sample,
             double *logdiseaseprior,
             int *samplesize, int *staken, int *warmuptheta, int *interval,
             int *verbose
@@ -455,7 +562,6 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
   int Np0, Np1;
   int step, taken, give_log1=1, give_log0=0;
   int i, Ki, Ni, isamp, iinterval, isamplesize, iwarmuptheta;
-  int discount;
   double ip, cutoff;
   double mu0i, mu0star, lnlam0star, lnlam0i, lp;
   double mu1i, mu1star, lnlam1star, lnlam1i;
@@ -464,7 +570,10 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
   double sigma0star, sigma0i, sigma20star, sigma20i, qnu0star, qnu0i;
   double sigma1star, sigma1i, sigma21star, sigma21i, qnu1star, qnu1i;
   double nu0star, nu1star, nu0i, nu1i;
-  double taustar, ptaustar, ptau, taui;
+  double ptaui, taui;
+  double ptaustar, taustar;
+  double ptau1i, tau1i;
+  double ptau1star, tau1star;
   double p0ithetastar, p0ithetai, p1ithetastar, p1ithetai;
   double ddfmu, rdfmu, ddfsigma;
   double dmu0, dmu1;
@@ -498,7 +607,6 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
   ddfmu=(*dfmu);
   rdfmu=sqrt(ddfmu);
   ddfsigma=(*dfsigma);
-  discount=(*idiscount);
   dsigma0=(*sigma0);
   dsigma1=(*sigma1);
   dsigma20=(dsigma0*dsigma0);
@@ -513,6 +621,7 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
   isamp = taken = 0;
   step = -iwarmuptheta;
   taui = tausample[0];
+  tau1i = tau1sample[0];
   p0is=1.;
   for (i=0; i<Np0; i++){
     pdeg0i[i] = psample0[i];
@@ -631,7 +740,8 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
     /* Propose new theta */
 
     /* Start with the disease status parameters */
-    taustar = rnorm(taui, dtauproposal);
+    taustar  = rnorm(taui,  dtauproposal);
+    tau1star = rnorm(tau1i, dtauproposal);
 
     /* Now the degree distribution model parameters */
     for (i=0; i<Np0; i++){
@@ -772,13 +882,28 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
     ip += p1ithetastar-p1ithetai;
 
     /* Add the disease status */
-    ptaustar = exp(taustar)/(1.+exp(taustar));
-    ip+=(discount*log(ptaustar)+(Ni-discount)*log(1.-ptaustar));
-    ptau = exp(taui)/(1.+exp(taui));
-    ip-=(discount*log(ptau)+(Ni-discount)*log(1.-ptau));
+    ptaustar = ( exp(taustar+tau1star) / (1.+exp(taustar + tau1star)) ); // 1 -> 1
+    ptaui= ( exp(taui+tau1i) / (1.+exp(taui + tau1i)) );
+    ptau1star = ( 1. / (1.+exp(tau1star - taustar)) ); // 0 -> 1
+    ptau1i= ( 1. / (1.+exp(tau1i- taui)) );
+    for (i=0; i<Ki; i++){
+     if(Nk11[i]>0){
+      ip+=Nk11[i]*(log(ptaustar)-log(ptaui));
+     }
+     if(Nk01[i]>0){
+      ip+=Nk01[i]*(log(ptau1star)-log(ptau1i));
+     }
+     if(Nk10[i]>0){
+      ip+=Nk10[i]*(log(1.-ptaustar)-log(1.-ptaui));
+     }
+     if(Nk00[i]>0){
+      ip+=Nk00[i]*(log(1.-ptau1star)-log(1.-ptau1i));
+     }
+    }
     /* Add the disease status prior */
     ip+=logdiseaseprior[(int)trunc(1000*ptaustar-0.5)];
-    ip-=logdiseaseprior[(int)trunc(1000*ptau-0.5)];
+    ip-=logdiseaseprior[(int)trunc(1000*ptaui-0.5)];
+//Rprintf("taustar %f tau1star %f dispairs %d discount %d Ni %d\n", taustar, tau1star, dispairs, discount, Ni);
 //Rprintf("d0 %f d1 %f Ips %d Ip %d ips %f ip %f\n", diseaseprior[0], diseaseprior[1],
 //	          	(int)trunc(1000*ptaustar+0.5),(int)trunc(1000*ptau+0.5),
 //		          log(diseaseprior[(int)trunc(1000*ptaustar+0.5)]),
@@ -791,6 +916,40 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
 //                          (discount*log(ptau)+(Ni-discount)*log(1.-ptau)), tmp2-tmp1,tmp2-ip );
 
     for (i=0; i<Ki; i++){
+//   if(Nk00[i]>0){
+//    lp = log(p0star[i]*ptaustar/(p0i[i]*ptaui));
+//    if(fabs(lp) < 100.){ip += (Nk00[i]*lp);}
+//   }
+//   if(Nk10[i]>0){
+//    lp = log(p0star[i]*(1.-ptau1star)/(p0i[i]*(1.-ptau1i)));
+//    if(fabs(lp) < 100.){ip += (Nk01[i]*lp);}
+//   }
+//   if(Nk11[i]>0){
+//    lp = log(p1star[i]*ptau1star/(p1i[i]*ptau1i));
+//    if(fabs(lp) < 100.){ip += (Nk11[i]*lp);}
+//   }
+//   if(Nk01[i]>0){
+//    lp = log(p1star[i]*(1.-ptau1star)/(p1i[i]*(1.-ptau1i)));
+//    if(fabs(lp) < 100.){ip += (Nk10[i]*lp);}
+//   }
+//  for (i=0; i<Ki; i++){
+//   if(Nk00[i]>0){
+//    lp = log(p0star[i]*ptaustar/(p0i[i]*ptaui));
+//    if(fabs(lp) < 100.){ip += (Nk00[i]*lp);}
+//   }
+//   if(Nk10[i]>0){
+//    lp = log(p0star[i]*(1.-ptau1star)/(p0i[i]*(1.-ptau1i)));
+//    if(fabs(lp) < 100.){ip += (Nk01[i]*lp);}
+//   }
+//   if(Nk11[i]>0){
+//    lp = log(p1star[i]*ptau1star/(p1i[i]*ptau1i));
+//    if(fabs(lp) < 100.){ip += (Nk11[i]*lp);}
+//   }
+//   if(Nk01[i]>0){
+//    lp = log(p1star[i]*(1.-ptau1star)/(p1i[i]*(1.-ptau1i)));
+//    if(fabs(lp) < 100.){ip += (Nk10[i]*lp);}
+//   }
+
      if(Nk0[i]>0){
       lp = log(p0star[i]/p0i[i]);
       if(fabs(lp) < 100.){ip += (Nk0[i]*lp);}
@@ -799,6 +958,14 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
       lp = log(p1star[i]/p1i[i]);
       if(fabs(lp) < 100.){ip += (Nk1[i]*lp);}
      }
+//   if(Nk0[i]>0){
+//    lp = log(p0star[i]*(1.-ptaustar)/(p0i[i]*(1.-ptaui)));
+//    if(fabs(lp) < 100.){ip += (Nk0[i]*lp);}
+//   }
+//   if(Nk1[i]>0){
+//    lp = log(p1star[i]*ptaustar/(p1i[i]*ptaui));
+//    if(fabs(lp) < 100.){ip += (Nk1[i]*lp);}
+//   }
     }
     /* The logic is to set exp(cutoff) = exp(ip) * qratio ,
     then let the MH probability equal min{exp(cutoff), 1.0}.
@@ -809,6 +976,7 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
     if (cutoff >= 0.0 || log(unif_rand()) < cutoff) { 
       /* Make proposed changes */
       taui = taustar;
+      tau1i = tau1star;
       for (i=0; i<Np0; i++){
         odeg0i[i] = odeg0star[i];
         pdeg0i[i] = pdeg0star[i];
@@ -835,6 +1003,7 @@ void MHcmpthetadisease (int *dis, int *u, int *Nk0, int *Nk1, int *K, int *idisc
       if (step > 0 && step % iinterval == 0) { 
         /* record statistics for posterity */
         tausample[isamp] = taui;
+        tau1sample[isamp] = tau1i;
         lnlamsample0[isamp]=lnlam0i;
         nusample0[isamp]=nu0i;
         for (i=0; i<Np0; i++){
